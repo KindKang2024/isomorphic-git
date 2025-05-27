@@ -1,0 +1,27 @@
+Source Directory: /Users/beswarm/dart_git/isomorphic-git/src
+Target Directory: /Users/beswarm/dart_git/isomorphic-git/lib/src
+Output File: /Users/beswarm/dart_git/isomorphic-git/tools/missing_files_report.txt
+Comparison Mode: Ignoring file extensions, case, underscores (_), and hyphens (-).
+
+Files in Source Directory for which NO corresponding normalized base name (ignoring extension, case, underscores, and hyphens) was found in Target Directory (grouped by directory):
+
+Directory: (root directory)
+  - http.d.ts
+  - index.js
+  - internal-apis.d.ts
+  - internal-apis.js
+  - typedefs-http.js
+  - typedefs.js
+
+Directory: errors
+  - index.js
+
+Directory: http/node
+  - index.js
+
+Directory: http/web
+  - index.js
+
+Directory: managers
+  - README.md
+

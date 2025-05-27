@@ -146,3 +146,6 @@ docs/writeObject.md
 docs/writeRef.md
 docs/writeTag.md
 docs/writeTree.md
+
+.DS_Store
+.dart_tool
