@@ -1,64 +1,56 @@
 import 'dart:async';
 
+import '../models/file_system.dart';
 import '../utils/join.dart';
-import '../models/fs.dart'; // Assuming FS model is defined here
-import '../models/stat.dart'; // Assuming Stat model for lstat results
 
-Future<void> rmRecursive(FS fs, String filepath) async {
+/// Removes the directory at the specified filepath recursively. Used internally to replicate the behavior of
+/// fs.promises.rm({ recursive: true, force: true }) from Node.js 14 and above when not available. If the provided
+/// filepath resolves to a file, it will be removed.
+Future<void> rmRecursive(FileSystem fs, String filepath) async {
   List<String>? entries;
   try {
     entries = await fs.readdir(filepath);
   } catch (e) {
     // If readdir fails, it might be a file or a non-existent path.
-    // Try to remove it as a file. If it doesn't exist, fs.rm should handle it gracefully or throw.
+    // Attempt to remove it as a file.
+    // The `force: true` behavior implies not throwing if it doesn't exist.
+    try {
+      await fs.rm(filepath);
+    } catch (e2) {
+      // If both readdir and rm fail, and we want to mimic `force: true`,
+      // we might choose to ignore this error if the intent is to ensure it's gone.
+      // However, the original JS doesn't explicitly handle fs.rm throwing on non-existence for files.
+      // For now, let it throw if fs.rm fails after readdir failed.
+    }
+    return;
   }
 
   if (entries == null) {
-    // Path is likely a file or does not exist, attempt to remove as a file.
-    // `fs.rm` should ideally not throw if the file doesn't exist (like `force: true`)
-    // or this part needs to be wrapped in a try-catch if `fs.rm` throws for non-existent files.
+    // This case is for when readdir returns null (e.g. it's a file, not a directory)
+    // In the JS, this would mean it's a file, so `fs.rm(filepath)` is called.
+    // This is now handled in the catch block for `fs.readdir` for cleaner logic.
+    // However, to be extremely close to the original if `entries` can be null from `readdir` for a file:
     try {
       await fs.rm(filepath);
     } catch (e) {
-      // If fs.rm throws an error because the file/dir does not exist, we can ignore it,
-      // as the goal is to ensure it's removed.
-      // For other errors, we might want to rethrow them.
-      // This depends on the exact behavior of `fs.rm` when a path doesn't exist.
-      // For now, assuming `fs.rm` is like `rm -f`.
+      // Ignore if it's already gone, similar to `force: true`
     }
   } else if (entries.isNotEmpty) {
-    final futures = entries.map((entry) async {
-      final subpath = join(filepath, entry);
-      Stat? stat;
-      try {
-        stat = await fs.lstat(subpath);
-      } catch (e) {
-        // If lstat fails, the entry might have been removed by a parallel operation.
-        // Or it's a broken symlink, etc. We can choose to ignore or log.
-        return; // Skip if stat cannot be obtained
-      }
-
-      if (stat == null)
-        return; // Should not happen if lstat doesn't throw for non-existent
-
-      if (stat.isDirectory) {
-        return rmRecursive(fs, subpath);
-      } else {
-        return fs.rm(subpath);
-      }
-    });
-    await Future.wait(futures);
-    try {
-      await fs.rmdir(filepath); // Remove the now-empty directory
-    } catch (e) {
-      // Ignore if directory is already removed or was a file to begin with
-    }
+    await Future.wait(
+      entries.map((entry) async {
+        final subpath = join([filepath, entry]);
+        final stat = await fs.lstat(subpath);
+        if (stat == null) return;
+        if (stat.isDirectory()) {
+          await rmRecursive(fs, subpath);
+        } else {
+          await fs.rm(subpath);
+        }
+      }),
+    );
+    await fs.rmdir(filepath); // Remove the now-empty directory
   } else {
     // Directory is empty
-    try {
-      await fs.rmdir(filepath);
-    } catch (e) {
-      // Ignore if directory is already removed or was a file to begin with
-    }
+    await fs.rmdir(filepath);
   }
 }

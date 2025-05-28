@@ -1,55 +1,43 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import '../models/git_pack_index.dart';
-import '../utils/fs.dart';
+import '../models/file_system.dart'; // Assuming a file system shim for 'fs'
 
-// TODO: Consider a more Dart-idiomatic way to handle caching if needed.
-// const PackfileCache = Symbol('PackfileCache');
+// Using a simple in-memory cache for packfiles, similar to the JS version.
+// For a more robust solution, consider a more sophisticated caching mechanism.
+final Map<String, Future<GitPackIndex?>> _packfileCache = {};
 
-Future<GitPackIndex> _loadPackIndex({
+Future<GitPackIndex?> _loadPackIndex({
   required FileSystem fs,
   required String filename,
-  required Function getExternalRefDelta,
-  // TODO: emitter and emitterPrefix are not used in the original code, consider removing or implementing.
-  // required Emitter emitter,
-  // required String emitterPrefix,
+  required Future<Uint8List> Function(String oid) getExternalRefDelta,
+  // emitter and emitterPrefix are not directly translated as their usage
+  // in the original JS context (likely for events) might need a different approach in Dart.
 }) async {
-  final Uint8List idx = await fs.read(filename);
-  return GitPackIndex.fromIdx(
-    idx: idx,
-    getExternalRefDelta: getExternalRefDelta,
-  );
+  final idx = await fs.read(filename);
+  if (idx == null) {
+    // Or throw an error, depending on desired behavior for missing files
+    return null;
+  }
+  return GitPackIndex.fromIdx(idx: idx, getExternalRefDelta: getExternalRefDelta);
 }
 
-Future<GitPackIndex> readPackIndex({
+Future<GitPackIndex?> readPackIndex({
   required FileSystem fs,
-  required Map<String, dynamic> cache,
+  // 'cache' in JS was a general-purpose cache. Here we use a dedicated packfile cache.
   required String filename,
-  required Function getExternalRefDelta,
-  // TODO: emitter and emitterPrefix are not used in the original code, consider removing or implementing.
-  // required Emitter emitter,
-  // required String emitterPrefix,
+  required Future<Uint8List> Function(String oid) getExternalRefDelta,
+  // emitter and emitterPrefix are omitted for now.
 }) async {
-  // Try to get the packfile index from the in-memory cache
-  // Dart doesn't have Symbols in the same way, using a String key for the cache.
-  const String packfileCacheKey = 'PackfileCache';
-  if (!cache.containsKey(packfileCacheKey)) {
-    cache[packfileCacheKey] = <String, Future<GitPackIndex>>{};
-  }
-
-  final Map<String, Future<GitPackIndex>> packfileCache =
-      cache[packfileCacheKey]! as Map<String, Future<GitPackIndex>>;
-
-  Future<GitPackIndex>? p = packfileCache[filename];
+  var p = _packfileCache[filename];
   if (p == null) {
     p = _loadPackIndex(
       fs: fs,
       filename: filename,
       getExternalRefDelta: getExternalRefDelta,
-      // emitter: emitter,
-      // emitterPrefix: emitterPrefix,
     );
-    packfileCache[filename] = p;
+    _packfileCache[filename] = p;
   }
   return p;
 }

@@ -1,9 +1,9 @@
-String formatAuthor({
-  required String name,
-  required String email,
-  required int timestamp,
-  required int timezoneOffset,
-}) {
+String formatAuthor(Map<String, dynamic> author) {
+  final String name = author['name'] as String;
+  final String email = author['email'] as String;
+  final int timestamp = author['timestamp'] as int;
+  final int timezoneOffset = author['timezoneOffset'] as int;
+  
   String tz = formatTimezoneOffset(timezoneOffset);
   return '$name <$email> $timestamp $tz';
 }

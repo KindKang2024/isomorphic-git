@@ -2,8 +2,9 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import '../errors/internal_error.dart'; // Assuming this will be created
-import '../utils/author_utils.dart'; // Assuming for formatAuthor and parseAuthor
-import '../utils/string_utils.dart'; // Assuming for normalizeNewlines
+import '../utils/format_author.dart'; // Assuming for formatAuthor and parseAuthor
+import '../utils/normalize_newlines.dart'; // Assuming for normalizeNewlines
+import '../utils/parse_author.dart'; // Assuming for parseAuthor
 
 // Placeholder for a PGP signing function type
 typedef SignFunction = Future<({String signature})> Function({

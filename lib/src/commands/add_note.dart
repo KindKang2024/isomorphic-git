@@ -8,9 +8,9 @@ import '../errors/already_exists_error.dart';
 import '../errors/not_found_error.dart';
 import '../managers/git_ref_manager.dart';
 import '../storage/write_object.dart' as write_object_command;
-import '../models/fs.dart'; // Assuming FsModel exists
+import '../models/file_system.dart'; // Assuming FsModel exists
 import '../models/git_tree.dart'; // Assuming GitTree and TreeEntry exist
-import '../utils/typedefs.dart'; // For SignCallback and other potential typedefs
+import '../static_typedefs.dart';
 
 class AddNoteAuthor {
   final String name;
@@ -115,27 +115,11 @@ Future<String> addNote({
     treeOid: treeOid,
     parents: parent != null ? [parent] : [],
     message: "Note added by 'isomorphic-git addNote'\n",
-    author: 오른쪽GitAuthor(name: author.name, email: author.email, timestamp: author.timestamp, timezoneOffset: author.timezoneOffset),
-    committer: 오른쪽GitCommitter(name: committer.name, email: committer.email, timestamp: committer.timestamp, timezoneOffset: committer.timezoneOffset),
+    author: GitAuthor(name: author.name, email: author.email, timestamp: author.timestamp, timezoneOffset: author.timezoneOffset),
+    committer: GitCommitter(name: committer.name, email: committer.email, timestamp: committer.timestamp, timezoneOffset: committer.timezoneOffset),
     signingKey: signingKey,
   );
 
   return commitOid;
 }
 
-// Placeholder for an assumed GitAuthor class, adjust as necessary
-class 오른쪽GitAuthor {
-  String name;
-  String email;
-  int timestamp;
-  int timezoneOffset;
-  오른쪽GitAuthor({required this.name, required this.email, required this.timestamp, required this.timezoneOffset});
-}
-// Placeholder for an assumed GitCommitter class, adjust as necessary
-class 오른쪽GitCommitter {
-  String name;
-  String email;
-  int timestamp;
-  int timezoneOffset;
-  오른쪽GitCommitter({required this.name, required this.email, required this.timestamp, required this.timezoneOffset});
-} 

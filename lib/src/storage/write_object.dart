@@ -4,7 +4,7 @@ import '../models/git_object.dart';
 import '../storage/write_object_loose.dart';
 import '../utils/deflate.dart';
 import '../utils/shasum.dart';
-import '../utils/fs.dart'; // Assuming FileSystem is defined here
+import '../models/file_system.dart';
 
 Future<String> writeObject({
   required FileSystem fs,

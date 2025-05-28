@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:async_locks/async_locks.dart';
+import 'package:isomorphic_git/src/models/file_system.dart';
 import 'package:path/path.dart' as p;
 
 import '../errors/invalid_oid_error.dart';
@@ -12,6 +13,7 @@ import '../models/git_packed_refs.dart';
 import '../models/git_refspec_set.dart';
 // Assuming compareRefNames is in utils or a similar location
 import '../utils/compare_ref_names.dart';
+import '../models/file_system.dart';
 import 'git_config_manager.dart';
 
 // @see https://git-scm.com/docs/git-rev-parse.html#_specifying_revisions
@@ -222,7 +224,7 @@ class GitRefManager {
   }
 
   static Future<String> resolve({
-    required Directory fs,
+    required FileSystem fs,
     required String gitdir,
     required String ref,
     int? depth,

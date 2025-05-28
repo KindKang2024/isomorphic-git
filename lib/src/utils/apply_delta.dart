@@ -1,63 +1,6 @@
 import 'dart:typed_data';
-
-// Assuming the existence of these files/classes based on the JS version:
-// import '../errors/internal_error.dart'; // Or your custom error handling
-// import '../utils/buffer_cursor.dart'; // Or your custom BufferCursor implementation
-
-// Placeholder for InternalError until its Dart version is defined
-class InternalError extends Error {
-  final String message;
-  InternalError(this.message);
-  @override
-  String toString() => 'InternalError: $message';
-}
-
-// Placeholder for BufferCursor until its Dart version is defined
-// This is a simplified version. A full implementation would be more complex.
-class BufferCursor {
-  ByteData _data;
-  int _offset;
-
-  BufferCursor(Uint8List bytes) 
-      : _data = ByteData.sublistView(bytes),
-        _offset = 0;
-
-  int get offset => _offset;
-  bool eof() => _offset >= _data.lengthInBytes;
-  int tell() => _offset;
-
-  int readUInt8() {
-    if (eof()) throw RangeError('Attempt to read past end of buffer');
-    final value = _data.getUint8(_offset);
-    _offset += 1;
-    return value;
-  }
-
-  void copy(Uint8List dataToCopy) {
-    // This is a conceptual placeholder. In a real BufferCursor for writing,
-    // you'd write into its internal buffer.
-    // For this conversion, assuming 'writer.copy' means writing dataToCopy into the target buffer.
-    // The JS 'writer.copy(firstOp)' implies writing 'firstOp' into 'target' at current 'writer' position.
-    // This simplified version doesn't manage a writable buffer directly.
-    // A full implementation would require the target buffer to be passed or managed internally.
-    print("BufferCursor.copy called - needs proper implementation for writing.");
-  }
-  
-  Uint8List slice(int length) {
-    if (_offset + length > _data.lengthInBytes) {
-      throw RangeError('Attempt to read past end of buffer');
-    }
-    final view = Uint8List.sublistView(_data.buffer.asUint8List(), _data.offsetInBytes + _offset, _data.offsetInBytes + _offset + length);
-    _offset += length;
-    return view;
-  }
-
-  // Helper to allow direct writing into a Uint8List for the applyDelta logic
-  // This is a workaround for the simplified BufferCursor
-  static void writeBytesTo(Uint8List target, int targetOffset, Uint8List source) {
-    target.setRange(targetOffset, targetOffset + source.length, source);
-  }
-}
+import '../errors/internal_error.dart';
+import 'buffer_cursor.dart';
 
 Uint8List applyDelta(Uint8List delta, Uint8List source) {
   final reader = BufferCursor(delta);

@@ -1,5 +1,5 @@
 import '../utils/assign_defined.dart';
-// TODO: Implement or import _getConfig equivalent in Dart
+import '../commands/get_config.dart';
 
 Future<Map<String, dynamic>?> normalizeCommitterObject({
   required dynamic fs,
@@ -11,22 +11,21 @@ Future<Map<String, dynamic>?> normalizeCommitterObject({
   final timestamp = (DateTime.now().millisecondsSinceEpoch / 1000).floor();
 
   final defaultCommitter = <String, dynamic>{
-    'name': await _getConfig(fs: fs, gitdir: gitdir, path: 'user.name'),
+    'name': await getConfig(fs: fs,  path: 'user.name'),
     'email':
-        (await _getConfig(fs: fs, gitdir: gitdir, path: 'user.email')) ?? '',
+        (await getConfig(fs: fs, gitdir: gitdir, path: 'user.email')) ?? '',
     'timestamp': timestamp,
     'timezoneOffset': DateTime.fromMillisecondsSinceEpoch(
       timestamp * 1000,
     ).timeZoneOffset.inMinutes,
   };
 
-  final normalizedCommitter = assignDefined(
-    {},
+  final normalizedCommitter = assignDefined({}, [
     defaultCommitter,
-    commit?['committer'],
+    commit != null ? commit['committer'] as Map<String, dynamic>? : null,
     author,
     committer,
-  );
+  ]);
 
   if (normalizedCommitter['name'] == null) {
     return null;

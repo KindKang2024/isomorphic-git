@@ -1,7 +1,7 @@
-name: dart_git
+name: isomorphic_git
 description: A pure Dart implementation of Git - ported from isomorphic-git
 version: 1.0.0
-repository: https://github.com/your-org/dart_git
+repository: https://github.com/kindkang2024/isomorphic-git
 
 environment:
   sdk: ^3.8.0
@@ -23,6 +23,7 @@ dependencies:
   collection: ^1.18.0
   meta: ^1.11.0
   async: ^2.11.0
+  archive: ^4.0.7
 
 dev_dependencies:
   lints: ^5.0.0

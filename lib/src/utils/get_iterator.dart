@@ -1,4 +1,5 @@
 import 'from_value.dart';
+import 'dart:async';
 
 /// Returns an iterator for the given [iterable].
 dynamic getIterator(dynamic iterable) {

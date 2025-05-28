@@ -1,7 +1,8 @@
 import './base_error.dart';
 
 class InternalError extends BaseError {
-  InternalError(String? message) : super(message);
+
+  InternalError(String message) : super(message:message);
 
   @override
   String get code => 'InternalError';

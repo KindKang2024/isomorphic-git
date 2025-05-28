@@ -1,13 +1,11 @@
-// import '../models/git_object.dart'; // TODO: Implement or import GitObject
-// import 'shasum.dart';
+import '../models/git_object.dart';
+import 'shasum.dart';
+import 'dart:typed_data';
 
 Future<String> hashObject({
   required String gitdir,
   required String type,
-  required List<int> object,
+  required Uint8List object,
 }) async {
-  // return shasum(GitObject.wrap(type: type, object: object));
-  throw UnimplementedError(
-    'hashObject translation requires GitObject and shasum implementations.',
-  );
+  return shasum(GitObject.wrap(type: type, object: object));
 }

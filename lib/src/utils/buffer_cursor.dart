@@ -4,13 +4,17 @@ import 'dart:convert';
 // Modeled after https://github.com/tjfontaine/node-buffercursor
 // but with the goal of being much lighter weight.
 class BufferCursor {
-  Uint8List _buffer;
+  final Uint8List _buffer;
   int _start = 0;
-  ByteData _byteDataView;
+  final ByteData _byteDataView;
 
-  BufferCursor(Uint8List buffer) 
+  BufferCursor(Uint8List buffer)
     : _buffer = buffer,
-      _byteDataView = ByteData.view(buffer.buffer, buffer.offsetInBytes, buffer.lengthInBytes);
+      _byteDataView = ByteData.view(
+        buffer.buffer,
+        buffer.offsetInBytes,
+        buffer.lengthInBytes,
+      );
 
   bool eof() {
     return _start >= _buffer.lengthInBytes;
@@ -62,12 +66,16 @@ class BufferCursor {
   int copy(Uint8List source, int sourceStart, int sourceEnd) {
     final lengthToCopy = sourceEnd - sourceStart;
     if (lengthToCopy < 0) {
-       throw ArgumentError('sourceEnd must be greater than or equal to sourceStart');
+      throw ArgumentError(
+        'sourceEnd must be greater than or equal to sourceStart',
+      );
     }
     if (_start + lengthToCopy > _buffer.lengthInBytes) {
       throw RangeError('Not enough space in target buffer');
     }
-    if (sourceStart < 0 || sourceEnd > source.lengthInBytes || sourceStart > sourceEnd) {
+    if (sourceStart < 0 ||
+        sourceEnd > source.lengthInBytes ||
+        sourceStart > sourceEnd) {
       throw RangeError('Source range is out of bounds');
     }
     _buffer.setRange(_start, _start + lengthToCopy, source, sourceStart);

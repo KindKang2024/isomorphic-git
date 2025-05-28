@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { EOL } from 'os'; // For platform-independent newlines
 
+// node diff.js  $HOME/dart_git/src $HOME/dart_git/lib/src missing_files_report.txt
 // --- Helper function to get a fully normalized base path ---
 // This function will now handle extension removal, case, hyphens, underscores,
 // and path separator normalization for the key used in comparison.

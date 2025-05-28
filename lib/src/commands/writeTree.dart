@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:isomorphic_git/src/models/git_tree.dart';
-import 'package:isomorphic_git/src/storage/write_object.dart';
+import 'package:./models/git_tree.dart';
+import 'package:./storage/write_object.dart';
 
 // Assuming FileSystem and TreeObject are defined elsewhere.
 // For now, using `dynamic` and a List of dynamics as placeholders.

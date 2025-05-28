@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:isomorphic_git/isomorphic_git.dart';
 import '../errors/not_found_error.dart';
 import '../managers/git_ref_manager.dart';
 import '../managers/git_stash_manager.dart';

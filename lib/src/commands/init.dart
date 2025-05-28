@@ -1,17 +1,18 @@
 import 'dart:io';
+import '../models/file_system.dart';
 import 'package:path/path.dart' as p;
 
 /// Initialize a new repository
 Future<void> init({
-  required Directory fs,
+  required FileSystem fs,
   bool bare = false,
   String? dir,
   String? gitdir,
   String defaultBranch = 'master',
 }) async {
-  final gitDirectory = bare ? Directory(dir!) : Directory(p.join(dir!, '.git'));
+  var gitDirectory = bare ? Directory(dir!) : Directory(p.join(dir!, '.git'));
   if (gitdir != null) {
-    gitDirectory.path = gitdir;
+    gitDirectory = Directory(gitdir);
   }
 
   // Don't overwrite an existing config

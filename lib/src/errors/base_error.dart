@@ -5,7 +5,7 @@ class BaseError implements Exception {
   String message;
   StackTrace? stackTrace;
 
-  BaseError(this.message);
+  BaseError({required this.message});
 
   Map<String, dynamic> toJson() => {
         'code': code,
@@ -18,7 +18,7 @@ class BaseError implements Exception {
       };
 
   static BaseError fromJson(Map<String, dynamic> json) {
-    final e = BaseError(json['message'] as String);
+    final e = BaseError(message:json['message'] as String);
     e.code = json['code'] as String?;
     e.data = json['data'];
     e.caller = json['caller'] as String;

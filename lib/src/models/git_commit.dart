@@ -2,14 +2,18 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import '../errors/internal_error.dart'; // Placeholder
-import '../utils/author_utils.dart'; // Placeholder for formatAuthor, parseAuthor
-import '../utils/string_utils.dart'; // Placeholder for normalizeNewlines, indent, outdent
+import '../utils/format_author.dart'; // Placeholder for formatAuthor, parseAuthor
+import '../utils/indent.dart'; // Placeholder for normalizeNewlines, indent, outdent
+import '../utils/outdent.dart'; // Placeholder for normalizeNewlines, indent, outdent
+import '../utils/normalize_newlines.dart'; // Placeholder for normalizeNewlines, indent, outdent
+import '../utils/parse_author.dart'; // Placeholder for normalizeNewlines, indent, outdent
 
 // Placeholder for a PGP signing function type
-typedef SignFunction = Future<({String signature})> Function({
-  required String payload,
-  required String secretKey,
-});
+typedef SignFunction =
+    Future<({String signature})> Function({
+      required String payload,
+      required String secretKey,
+    });
 
 // Assuming an Author class/structure exists, possibly like this:
 // class Author {
@@ -45,7 +49,8 @@ class GitCommit {
     final message = GitCommit.justMessage(payload);
     // Ensure signature is indented correctly, normalizeNewlines might be needed for signature too
     final commitStr = normalizeNewlines(
-        '$headers\ngpgsig${indent(normalizeNewlines(signature))}\n$message');
+      '$headers\ngpgsig${indent(normalizeNewlines(signature))}\n$message',
+    );
     return GitCommit(commitStr);
   }
 
@@ -66,10 +71,7 @@ class GitCommit {
   }
 
   Map<String, dynamic> parse() {
-    return {
-      'message': message(),
-      ...headers(),
-    };
+    return {'message': message(), ...headers()};
   }
 
   static String justMessage(String commit) {
@@ -92,7 +94,8 @@ class GitCommit {
     for (final h in lines) {
       if (h.startsWith(' ')) {
         if (processedHeaders.isNotEmpty) {
-          processedHeaders[processedHeaders.length - 1] += '\n${h.substring(1)}';
+          processedHeaders[processedHeaders.length - 1] +=
+              '\n${h.substring(1)}';
         } else {
           processedHeaders.add(h.substring(1));
         }
@@ -107,7 +110,7 @@ class GitCommit {
 
     for (final h in processedHeaders) {
       final firstSpace = h.indexOf(' ');
-      if (firstSpace == -1) continue; 
+      if (firstSpace == -1) continue;
 
       final key = h.substring(0, firstSpace);
       final value = h.substring(firstSpace + 1);
@@ -142,7 +145,8 @@ class GitCommit {
 
   static String renderHeaders(Map<String, dynamic> obj) {
     String headers = '';
-    headers += 'tree ${obj['tree'] ?? '4b825dc642cb6eb9a060e54bf8d69288fbee4904'}\n'; // a null tree
+    headers +=
+        'tree ${obj['tree'] ?? '4b825dc642cb6eb9a060e54bf8d69288fbee4904'}\n'; // a null tree
 
     final parents = obj['parent'];
     if (parents != null) {
@@ -156,10 +160,12 @@ class GitCommit {
 
     final author = obj['author'];
     if (author == null) throw InternalError('Author is required');
-    headers += 'author ${formatAuthor(author is Author ? author.toMap() : author as Map<String,dynamic>)}\n';
+    headers +=
+        'author ${formatAuthor(author is Author ? author.toMap() : author as Map<String, dynamic>)}\n';
 
     final committer = obj['committer'] ?? author;
-    headers += 'committer ${formatAuthor(committer is Author ? committer.toMap() : committer as Map<String,dynamic>)}\n';
+    headers +=
+        'committer ${formatAuthor(committer is Author ? committer.toMap() : committer as Map<String, dynamic>)}\n';
 
     if (obj.containsKey('gpgsig') && obj['gpgsig'] != null) {
       headers += 'gpgsig${indent(normalizeNewlines(obj['gpgsig'] as String))}';
@@ -172,7 +178,8 @@ class GitCommit {
     final message = obj['message'] as String;
     // Ensure there's a newline between headers and message if headers don't end with one
     String renderedHeaders = renderHeaders(obj);
-    if (!renderedHeaders.endsWith('\n') && renderedHeaders.isNotEmpty) renderedHeaders += '\n';
+    if (!renderedHeaders.endsWith('\n') && renderedHeaders.isNotEmpty)
+      renderedHeaders += '\n';
     return '$renderedHeaders\n${normalizeNewlines(message)}';
   }
 
@@ -190,11 +197,16 @@ class GitCommit {
     final endMarker = '-----END PGP SIGNATURE-----';
     int messageStartIndex = commit.indexOf(endMarker, gpgSigIndex);
     if (messageStartIndex != -1) {
-      messageStartIndex = commit.indexOf('\n', messageStartIndex + endMarker.length);
+      messageStartIndex = commit.indexOf(
+        '\n',
+        messageStartIndex + endMarker.length,
+      );
       if (messageStartIndex != -1) {
-         final headers = commit.substring(0, gpgSigIndex);
-         final message = commit.substring(messageStartIndex + 1); // +1 to skip the newline itself
-         return normalizeNewlines('$headers\n$message');
+        final headers = commit.substring(0, gpgSigIndex);
+        final message = commit.substring(
+          messageStartIndex + 1,
+        ); // +1 to skip the newline itself
+        return normalizeNewlines('$headers\n$message');
       }
     }
     // Fallback or error if signature block is malformed or not followed by a newline and message
@@ -205,7 +217,10 @@ class GitCommit {
     final sigStartIndex = _commit.indexOf('-----BEGIN PGP SIGNATURE-----');
     if (sigStartIndex == -1) return null;
 
-    final sigEndIndex = _commit.indexOf('-----END PGP SIGNATURE-----', sigStartIndex);
+    final sigEndIndex = _commit.indexOf(
+      '-----END PGP SIGNATURE-----',
+      sigStartIndex,
+    );
     if (sigEndIndex == -1) return null;
 
     final signatureBlock = _commit.substring(
@@ -217,14 +232,21 @@ class GitCommit {
     // It's more about extracting the block that was indented after 'gpgsig '.
     // So, we find the 'gpgsig' line, then extract the indented block.
     final gpgsigLineStart = _commit.lastIndexOf('\ngpgsig', sigStartIndex);
-    if (gpgsigLineStart == -1) return null; // Should not happen if sigStartIndex was found
-    
+    if (gpgsigLineStart == -1)
+      return null; // Should not happen if sigStartIndex was found
+
     // The actual signature content starts after 'gpgsig' and the first newline of the indented block
-    final actualSignatureContentStart = _commit.indexOf('\n', gpgsigLineStart + '\ngpgsig'.length) +1;
+    final actualSignatureContentStart =
+        _commit.indexOf('\n', gpgsigLineStart + '\ngpgsig'.length) + 1;
     if (actualSignatureContentStart == 0) return null; // Malformed
 
-    final fullSignatureBlock = _commit.substring(actualSignatureContentStart, sigEndIndex + '-----END PGP SIGNATURE-----'.length);
-    return outdent(fullSignatureBlock); // outdent will remove the leading space from each line
+    final fullSignatureBlock = _commit.substring(
+      actualSignatureContentStart,
+      sigEndIndex + '-----END PGP SIGNATURE-----'.length,
+    );
+    return outdent(
+      fullSignatureBlock,
+    ); // outdent will remove the leading space from each line
   }
 
   static Future<GitCommit> sign(
@@ -235,7 +257,7 @@ class GitCommit {
     final payload = commit.withoutSignature();
     // The message is part of the payload in 'withoutSignature'
     // final message = GitCommit.justMessage(commit._commit); // This would get original message
-    
+
     final result = await signFunction(payload: payload, secretKey: secretKey);
     String signature = result.signature;
     signature = normalizeNewlines(signature);

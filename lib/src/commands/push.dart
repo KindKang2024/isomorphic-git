@@ -1,4 +1,3 @@
-import 'package:isomorphic_git/isomorphic_git.dart';
 import '../errors/git_push_error.dart';
 import '../errors/missing_parameter_error.dart';
 import '../errors/not_found_error.dart';

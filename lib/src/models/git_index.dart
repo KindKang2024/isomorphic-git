@@ -7,8 +7,6 @@ import 'package:crypto/crypto.dart'; // For sha1
 import '../errors/internal_error.dart'; // Placeholder
 import '../errors/unsafe_filepath_error.dart'; // Placeholder
 import '../utils/buffer_cursor.dart'; // Placeholder
-import '../utils/path_utils.dart'; // Placeholder for comparePath
-import '../utils/stat_utils.dart'; // Placeholder for normalizeStats
 
 class CacheEntryFlags {
   bool assumeValid;

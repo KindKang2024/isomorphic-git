@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 // Helper function to parse boolean values from config
-bool(dynamic val) {
+bool parseBool(dynamic val) {
   if (val is bool) {
     return val;
   }
@@ -15,31 +15,30 @@ bool(dynamic val) {
 }
 
 // Helper function to parse numeric values from config (k, m, g suffixes)
-num(dynamic val) {
+int parseNum(dynamic val) {
   if (val is num) {
     return val.toInt();
   }
   if (val is String) {
     String lowerVal = val.toLowerCase();
-    int n = int.tryParse(lowerVal.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+    int n = int.tryParse(lowerVal.replaceAll(RegExp(r'[kmg]'), '')) ?? 0;
     if (lowerVal.endsWith('k')) n *= 1024;
     if (lowerVal.endsWith('m')) n *= 1024 * 1024;
     if (lowerVal.endsWith('g')) n *= 1024 * 1024 * 1024;
     return n;
   }
-  return 0; // Or throw error
+  return 0;
 }
 
 final Map<String, Map<String, Function>> schema = {
   'core': {
-    'filemode': bool,
-    'bare': bool,
-    'logallrefupdates': bool,
-    'symlinks': bool,
-    'ignorecase': bool,
-    'bigfilethreshold': num, // Note: JS version has 'bigFileThreshold'
+    'filemode': parseBool,
+    'bare': parseBool,
+    'logallrefupdates': parseBool,
+    'symlinks': parseBool,
+    'ignorecase': parseBool,
+    'bigfilethreshold': parseNum,
   },
-  // Add other sections and their schemas as needed
 };
 
 class GitConfigEntry {
@@ -49,7 +48,8 @@ class GitConfigEntry {
   final String? subsection;
   final String? name;
   final String? value;
-  final String path; // Combined path like section.subsection.name or section.name
+  final String path;
+  final bool modified;
 
   GitConfigEntry({
     required this.line,
@@ -59,7 +59,30 @@ class GitConfigEntry {
     this.name,
     this.value,
     required this.path,
+    this.modified = false,
   });
+
+  GitConfigEntry copyWith({
+    String? line,
+    bool? isSection,
+    String? section,
+    String? subsection,
+    String? name,
+    String? value,
+    String? path,
+    bool? modified,
+  }) {
+    return GitConfigEntry(
+      line: line ?? this.line,
+      isSection: isSection ?? this.isSection,
+      section: section ?? this.section,
+      subsection: subsection ?? this.subsection,
+      name: name ?? this.name,
+      value: value ?? this.value,
+      path: path ?? this.path,
+      modified: modified ?? this.modified,
+    );
+  }
 }
 
 class GitConfig {
@@ -76,92 +99,98 @@ class GitConfig {
     final lines = LineSplitter.split(text);
 
     for (final line in lines) {
+      String? name;
+      String? value;
+      
       final trimmedLine = line.trim();
-      if (trimmedLine.isEmpty ||
-          trimmedLine.startsWith('#') ||
-          trimmedLine.startsWith(';')) {
-        // Store comments/empty lines if needed for full reconstruction, or skip
-        // For now, skipping them for parsing values, but they are part of original `line`
-        // _parsedConfig.add(GitConfigEntry(line: line, isSection: false, path: ''));
-        continue;
-      }
-
-      final sectionMatch = _SECTION_LINE_REGEX.firstMatch(trimmedLine);
-      if (sectionMatch != null) {
-        currentSection = sectionMatch.group(1)?.toLowerCase();
-        currentSubsection = sectionMatch.group(2); // Keep original case for subsection as per git
-        _parsedConfig.add(GitConfigEntry(
-          line: line,
-          isSection: true,
-          section: currentSection,
-          subsection: currentSubsection,
-          path: _getPath(currentSection, currentSubsection, null),
-        ));
+      final extractedSection = _extractSectionLine(trimmedLine);
+      final isSection = extractedSection != null;
+      
+      if (isSection) {
+        currentSection = extractedSection![0];
+        currentSubsection = extractedSection[1];
       } else {
-        final variableMatch = _VARIABLE_LINE_REGEX.firstMatch(trimmedLine);
-        if (variableMatch != null && currentSection != null) {
-          final name = variableMatch.group(1)?.toLowerCase();
-          String rawValue = variableMatch.group(2) ?? 'true';
-          final valueWithoutComments = _removeComments(rawValue);
-          final valueWithoutQuotes = _removeQuotes(valueWithoutComments);
-
-          _parsedConfig.add(GitConfigEntry(
-            line: line,
-            isSection: false,
-            section: currentSection,
-            subsection: currentSubsection,
-            name: name,
-            value: valueWithoutQuotes,
-            path: _getPath(currentSection, currentSubsection, name),
-          ));
+        final extractedVariable = _extractVariableLine(trimmedLine);
+        final isVariable = extractedVariable != null;
+        if (isVariable) {
+          name = extractedVariable![0];
+          value = extractedVariable[1];
         }
       }
+
+      final path = _getPath(currentSection, currentSubsection, name);
+      _parsedConfig.add(GitConfigEntry(
+        line: line,
+        isSection: isSection,
+        section: currentSection,
+        subsection: currentSubsection,
+        name: name,
+        value: value,
+        path: path,
+      ));
     }
   }
 
-  static final _SECTION_LINE_REGEX = RegExp(r'^\s*\[([A-Za-z0-9-.]+)(?: "(.*)")?\]\s*$');
-  static final _VARIABLE_LINE_REGEX = RegExp(r'^\s*([A-Za-z][A-Za-z0-9-]*)(?:\s*=\s*(.*))?\s*$');
+  static final _SECTION_LINE_REGEX = RegExp(r'^\[([A-Za-z0-9-.]+)(?: "(.*)")?\]$');
+  static final _VARIABLE_LINE_REGEX = RegExp(r'^([A-Za-z][A-Za-z-]*)(?: *= *(.*))?$');
   static final _VARIABLE_VALUE_COMMENT_REGEX = RegExp(r'^(.*?)( *[#;].*)$');
+  static final _SECTION_REGEX = RegExp(r'^[A-Za-z0-9-.]+$');
+  static final _VARIABLE_NAME_REGEX = RegExp(r'^[A-Za-z][A-Za-z-]*$');
+
+  static List<String>? _extractSectionLine(String line) {
+    final matches = _SECTION_LINE_REGEX.firstMatch(line);
+    if (matches != null) {
+      return [matches.group(1)!, matches.group(2) ?? ''];
+    }
+    return null;
+  }
+
+  static List<String>? _extractVariableLine(String line) {
+    final matches = _VARIABLE_LINE_REGEX.firstMatch(line);
+    if (matches != null) {
+      final name = matches.group(1)!;
+      final rawValue = matches.group(2) ?? 'true';
+      final valueWithoutComments = _removeComments(rawValue);
+      final valueWithoutQuotes = _removeQuotes(valueWithoutComments);
+      return [name, valueWithoutQuotes];
+    }
+    return null;
+  }
 
   static String _removeComments(String rawValue) {
     final commentMatch = _VARIABLE_VALUE_COMMENT_REGEX.firstMatch(rawValue);
     if (commentMatch == null) {
-      return rawValue.trim();
+      return rawValue;
     }
-    final valueWithoutComment = commentMatch.group(1)!.trim();
+    final valueWithoutComment = commentMatch.group(1)!;
     final comment = commentMatch.group(2)!;
     // if odd number of quotes before and after comment => comment is escaped
     if (_hasOddNumberOfQuotes(valueWithoutComment) && _hasOddNumberOfQuotes(comment)) {
-      return '$valueWithoutComment$comment'.trim();
+      return '$valueWithoutComment$comment';
     }
     return valueWithoutComment;
   }
 
   static bool _hasOddNumberOfQuotes(String text) {
-    int count = 0;
-    bool escaped = false;
-    for (int i = 0; i < text.length; i++) {
-      if (text[i] == '\\') {
-        escaped = !escaped;
-      } else if (text[i] == '"' && !escaped) {
-        count++;
-        escaped = false;
-      } else {
-        escaped = false;
-      }
-    }
-    return count % 2 != 0;
+    final matches = RegExp(r'(?:^|[^\\])"').allMatches(text);
+    return matches.length % 2 != 0;
   }
 
   static String _removeQuotes(String text) {
-    if (text.length >= 2 && text.startsWith('"') && text.endsWith('"')) {
-      // This is a simplified unquoting. Git's unquoting is more complex.
-      // It handles escaped quotes inside, etc.
-      // For a more robust solution, a proper parser for Git config values is needed.
-      String inner = text.substring(1, text.length - 1);
-      return inner.replaceAll('\\"', '"').replaceAll('\\\\', '\\');
+    final chars = text.split('');
+    final result = StringBuffer();
+    
+    for (int i = 0; i < chars.length; i++) {
+      final c = chars[i];
+      final isQuote = c == '"' && (i == 0 || chars[i - 1] != '\\');
+      final isEscapeForQuote = c == '\\' && i + 1 < chars.length && chars[i + 1] == '"';
+      
+      if (!isQuote && !isEscapeForQuote) {
+        result.write(c);
+      }
     }
-    return text;
+    
+    return result.toString();
   }
 
   static String _getPath(String? section, String? subsection, String? name) {
@@ -172,10 +201,10 @@ class GitConfig {
 
   static ({String section, String? subsection, String? name, String path, String sectionPath, bool isSection}) _normalizePath(String path) {
     final pathSegments = path.split('.');
-    final section = pathSegments.removeAt(0).toLowerCase();
+    final section = pathSegments.removeAt(0);
     String? name;
     if (pathSegments.isNotEmpty) {
-      name = pathSegments.removeLast().toLowerCase();
+      name = pathSegments.removeLast();
     }
     final subsection = pathSegments.isNotEmpty ? pathSegments.join('.') : null;
 
@@ -189,16 +218,23 @@ class GitConfig {
     );
   }
 
+  static int _findLastIndex<T>(List<T> list, bool Function(T) test) {
+    for (int i = list.length - 1; i >= 0; i--) {
+      if (test(list[i])) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
   static GitConfig from(String text) {
     return GitConfig(text);
   }
 
   Future<dynamic> get(String path, [bool getAll = false]) async {
-    final normalizedPathInfo = _normalizePath(path);
-    final targetPath = normalizedPathInfo.path;
-
+    final normalizedPath = _normalizePath(path).path;
     final allValues = _parsedConfig
-        .where((config) => config.path == targetPath && config.value != null)
+        .where((config) => config.path == normalizedPath && config.value != null)
         .map((entry) {
           final sectionSchema = schema[entry.section!];
           final typeTransformer = sectionSchema?[entry.name!];
@@ -212,93 +248,110 @@ class GitConfig {
     return allValues.isNotEmpty ? allValues.last : null;
   }
 
-  Future<List<dynamic>> getAll(String path) async {
-    var result = await get(path, true);
-    return result as List<dynamic>;
+  Future<List<dynamic>> getall(String path) async {
+    return await get(path, true) as List<dynamic>;
   }
 
   Future<List<String?>> getSubsections(String section) async {
-    final lowerSection = section.toLowerCase();
     return _parsedConfig
-        .where((config) => config.isSection && config.section == lowerSection && config.subsection != null)
+        .where((config) => config.isSection && config.section == section && config.subsection != null)
         .map((config) => config.subsection)
-        .toSet() // Get unique subsections
+        .toSet()
         .toList();
   }
 
-  Future<void> set(String path, dynamic value) async {
+  Future<void> deleteSection(String section, [String? subsection]) async {
+    _parsedConfig.removeWhere((config) =>
+        config.section == section && config.subsection == subsection);
+  }
+
+  Future<void> append(String path, dynamic value) async {
+    return set(path, value, true);
+  }
+
+  Future<void> set(String path, dynamic value, [bool append = false]) async {
     final normalizedPathInfo = _normalizePath(path);
-    if (normalizedPathInfo.name == null) {
-      throw ArgumentError('Cannot set value for a section path, specify a variable name.');
-    }
+    final section = normalizedPathInfo.section;
+    final subsection = normalizedPathInfo.subsection;
+    final name = normalizedPathInfo.name;
+    final normalizedPath = normalizedPathInfo.path;
+    final sectionPath = normalizedPathInfo.sectionPath;
+    final isSection = normalizedPathInfo.isSection;
 
-    final String section = normalizedPathInfo.section;
-    final String? subsection = normalizedPathInfo.subsection;
-    final String name = normalizedPathInfo.name!;
-    final String targetPath = normalizedPathInfo.path;
-
-    // Remove existing entries for this path
-    _parsedConfig.removeWhere((entry) => entry.path == targetPath && !entry.isSection);
-
-    // Find or create section header
-    int sectionIndex = _parsedConfig.lastIndexWhere((entry) =>
-        entry.isSection &&
-        entry.section == section &&
-        entry.subsection == subsection);
-
-    String lineToInsert;
-    if (value == null) { // Unset the variable
-      // If value is null, we've already removed it. Nothing more to do unless we want to remove empty sections.
-      return;
-    } else if (value is bool) {
-      lineToInsert = '$name = ${value ? 'true' : 'false'}';
-    } else {
-      lineToInsert = '$name = $value'; // May need quoting for strings with spaces/special chars
-    }
-
-    final newEntry = GitConfigEntry(
-      line: lineToInsert, // This line is a bit simplified, doesn't include indentation
-      isSection: false,
-      section: section,
-      subsection: subsection,
-      name: name,
-      value: value.toString(), // Store the string representation
-      path: targetPath,
+    final configIndex = _findLastIndex(
+      _parsedConfig,
+      (config) => config.path == normalizedPath,
     );
 
-    if (sectionIndex == -1) {
-      // Section doesn't exist, create it
-      String sectionHeaderLine = subsection != null ? '[$section "$subsection"]' : '[$section]';
-      _parsedConfig.add(GitConfigEntry(
-          line: sectionHeaderLine, isSection: true, section: section, subsection: subsection, path: _getPath(section, subsection, null)));
-      _parsedConfig.add(newEntry);
+    if (value == null) {
+      if (configIndex != -1) {
+        _parsedConfig.removeAt(configIndex);
+      }
     } else {
-      _parsedConfig.insert(sectionIndex + 1, newEntry);
+      if (configIndex != -1) {
+        final config = _parsedConfig[configIndex];
+        final modifiedConfig = config.copyWith(
+          name: name,
+          value: value.toString(),
+          modified: true,
+        );
+        if (append) {
+          _parsedConfig.insert(configIndex + 1, modifiedConfig);
+        } else {
+          _parsedConfig[configIndex] = modifiedConfig;
+        }
+      } else {
+        final sectionIndex = _parsedConfig.indexWhere(
+          (config) => config.path == sectionPath,
+        );
+        final newConfig = GitConfigEntry(
+          line: '',
+          isSection: false,
+          section: section,
+          subsection: subsection,
+          name: name,
+          value: value.toString(),
+          modified: true,
+          path: normalizedPath,
+        );
+        
+        if (_SECTION_REGEX.hasMatch(section) && name != null && _VARIABLE_NAME_REGEX.hasMatch(name)) {
+          if (sectionIndex >= 0) {
+            _parsedConfig.insert(sectionIndex + 1, newConfig);
+          } else {
+            final newSection = GitConfigEntry(
+              line: '',
+              isSection: true,
+              section: section,
+              subsection: subsection,
+              modified: true,
+              path: sectionPath,
+            );
+            _parsedConfig.addAll([newSection, newConfig]);
+          }
+        }
+      }
     }
   }
 
   @override
   String toString() {
-    // Reconstruct the config file from _parsedConfig, trying to maintain original lines where possible
-    // This is a simplified toString. A more robust one would handle comments, original spacing etc.
-    final sb = StringBuffer();
-    String? lastSection;
-    String? lastSubsection;
-
-    for (final entry in _parsedConfig) {
-        if (entry.isSection) {
-            if (entry.section != lastSection || entry.subsection != lastSubsection) {
-                if (sb.isNotEmpty) sb.writeln(); // Add a newline before new section if not the first
-                sb.writeln(entry.line); // Use original line for sections
-                lastSection = entry.section;
-                lastSubsection = entry.subsection;
+    return _parsedConfig
+        .map((entry) {
+          if (!entry.modified) {
+            return entry.line;
+          }
+          if (entry.name != null && entry.value != null) {
+            if (entry.value!.contains(RegExp(r'[#;]'))) {
+              return '\t${entry.name} = "${entry.value}"';
             }
-        } else if (entry.name != null && entry.value != null) {
-            // For variables, prefer the reconstructed line from set, or original if not modified
-            // This part needs more sophisticated tracking of original vs modified lines
-            sb.writeln('  ${entry.name} = ${entry.value}'); // Simplified reconstruction
-        }
-    }
-    return sb.toString();
+            return '\t${entry.name} = ${entry.value}';
+          }
+          if (entry.subsection != null) {
+            return '[${entry.section} "${entry.subsection}"]';
+          }
+          return '[${entry.section}]';
+        })
+        .join('\n');
   }
 }

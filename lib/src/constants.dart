@@ -21,11 +21,11 @@ class GitStatus {
 
 /// Git file modes
 class GitFileMode {
-  static const int file = 0o100644;
-  static const int executable = 0o100755;
-  static const int symlink = 0o120000;
-  static const int tree = 0o040000;
-  static const int gitlink = 0o160000;
+  static const int file = 0x100644;
+  static const int executable = 0x100755;
+  static const int symlink = 0x120000;
+  static const int tree = 0x040000;
+  static const int gitlink = 0x160000;
 }
 
 /// Default Git configuration

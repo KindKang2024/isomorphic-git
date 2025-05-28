@@ -1,14 +1,12 @@
 import './base_error.dart';
 
 class CheckoutConflictError extends BaseError {
-  static const String code = 'CheckoutConflictError';
-
   final List<String> filepaths;
 
   CheckoutConflictError(this.filepaths)
-      : super(
+      : super( message: 
             'Your local changes to the following files would be overwritten by checkout: ${filepaths.join(', ')}') {
-    super.code = code;
+    super.code = "CheckoutConflictError";
     super.data = {'filepaths': filepaths};
   }
 }

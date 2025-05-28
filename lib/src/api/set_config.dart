@@ -37,32 +37,30 @@ import '../utils/join.dart';
 /// );
 /// ```
 Future<void> setConfig({
-  required dynamic fs,
+  required FileSystem fs,
   String? dir,
   String? gitdir,
   required String path,
   dynamic value, // Can be String, bool, num, or null (for deletion)
   bool append = false,
 }) async {
-  final String effectiveGitdir = gitdir ?? join(dir, '.git');
-  final fsModel = FileSystem(fs);
-
   try {
     assertParameter('fs', fs);
+    
+    final String effectiveGitdir = gitdir ?? join(dir, '.git');
     assertParameter('gitdir', effectiveGitdir);
     assertParameter('path', path);
     // `value` can be null for deletion, so no direct assertParameter for it here.
 
+    // final fsModel = FileSystem(fs);
+    final fsModel = fs;
     final config = await GitConfigManager.get(
       fs: fsModel,
       gitdir: effectiveGitdir,
     );
     if (append) {
-      // Dart's dynamic typing handles different value types naturally.
-      // The `append` method in GitConfigManager should be designed to handle this.
       await config.append(path, value);
     } else {
-      // `set` method should also handle various types, including null for deletion.
       await config.set(path, value);
     }
     await GitConfigManager.save(
@@ -71,6 +69,10 @@ Future<void> setConfig({
       config: config,
     );
   } catch (e) {
+    // In Dart, we can add caller information to the exception
+    if (e is Exception) {
+      throw Exception('git.setConfig: ${e.toString()}');
+    }
     rethrow;
   }
 }

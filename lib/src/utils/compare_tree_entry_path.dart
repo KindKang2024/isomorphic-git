@@ -1,3 +1,5 @@
+import 'compare_strings.dart';
+
 int compareTreeEntryPath(dynamic a, dynamic b) {
   String appendSlashIfDir(dynamic entry) {
     return entry['mode'] == '040000' ? '${entry['path']}/' : entry['path'];

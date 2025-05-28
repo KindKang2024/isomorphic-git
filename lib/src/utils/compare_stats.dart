@@ -1,3 +1,5 @@
+import 'normalize_stats.dart';
+
 bool compareStats(
   dynamic entry,
   dynamic stats, {

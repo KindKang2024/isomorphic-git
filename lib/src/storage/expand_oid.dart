@@ -4,29 +4,23 @@ import '../storage/expand_oid_loose.dart';
 import '../storage/expand_oid_packed.dart';
 import '../storage/read_object.dart' as read_object;
 
-// Assuming fs, cache, and gitdir are available in the scope or passed differently.
-// This is a placeholder for the actual implementation.
-class FileSystem {}
-
-class Cache {}
-
 Future<String> expandOid({
-  required FileSystem fs,
-  required Cache cache,
+  required dynamic fs,
+  required dynamic cache,
   required String gitdir,
-  required String oidShort,
+  required String oid,
 }) async {
   // Curry the current read method so that the packfile un-deltification
   // process can acquire external ref-deltas.
-  Future<dynamic> getExternalRefDelta(String oid) =>
-      read_object.readObject(fs: fs, cache: cache, gitdir: gitdir, oid: oid);
+  Future<dynamic> getExternalRefDelta(String objOid) =>
+      read_object.readObject(fs: fs, cache: cache, gitdir: gitdir, oid: objOid);
 
-  final results = await expandOidLoose(fs: fs, gitdir: gitdir, oid: oidShort);
+  final results = await expandOidLoose(fs: fs, gitdir: gitdir, oid: oid);
   final packedOids = await expandOidPacked(
     fs: fs,
     cache: cache,
     gitdir: gitdir,
-    oid: oidShort,
+    oid: oid,
     getExternalRefDelta: getExternalRefDelta,
   );
 
@@ -41,7 +35,7 @@ Future<String> expandOid({
     return results[0];
   }
   if (results.length > 1) {
-    throw AmbiguousError(name: 'oids', short: oidShort, matches: results);
+    throw AmbiguousError(name: 'oids', value: oid, possibilities: results);
   }
-  throw NotFoundError('an object matching "$oidShort"');
+  throw NotFoundError(thing: 'an object matching "$oid"');
 }

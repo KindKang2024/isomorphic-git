@@ -52,8 +52,7 @@ class GitPackIndex {
     final magic = hex.encode(reader.slice(4));
 
     if (magic != 'ff744f63') {
-      print('Not a version 2 packfile IDX');
-      return null; // Not a v2 IDX file
+      throw InternalError('Not a version 2 packfile IDX');
     }
 
     final version = reader.readUint32BE();
@@ -240,7 +239,7 @@ class GitPackIndex {
     // This will NOT work for OFS_DELTA or REF_DELTA without full parsing logic
     var reader = BufferCursor(rawData);
     int typeByte = reader.readUint8();
-    int typeNum = (typeByte & 0b01110000) >> 4;
+    int typeNum = (typeByte & 0x01110000) >> 4;
     // size decoding is also complex (variable length)
 
     String objectType;

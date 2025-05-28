@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:async/async.dart'; // For AsyncLock
+import 'package:isomorphic_git/src/models/file_system.dart';
 import '../commands/stage.dart';
 import '../commands/tree.dart';
 import '../commands/workdir.dart';
@@ -106,7 +107,7 @@ class _ProcessedEntry extends TreeEntry {
 }
 
 Future<List<_ProcessedEntry>> _processTreeEntries({
-  required FS fs,
+  required FileSystem fs,
   required String dir,
   required String gitdir,
   required List<_ProcessedEntry> entries,
@@ -138,7 +139,7 @@ Future<List<_ProcessedEntry>> _processTreeEntries({
 }
 
 Future<String?> writeTreeChanges({
-  required FS fs,
+  required FileSystem fs,
   required String dir,
   required String gitdir,
   required List<dynamic> treePair, // [TREE(ref: 'HEAD'), 'STAGE']
@@ -286,7 +287,7 @@ class _Op {
 }
 
 Future<void> applyTreeChanges({
-  required FS fs,
+  required FileSystem fs,
   required String dir,
   required String gitdir,
   required String stashCommit,

@@ -6,13 +6,18 @@ class InternalError implements Exception {
 }
 
 String mode2type(int mode) {
-  if (mode == 0o040000) {
-    return 'tree';
-  } else if (mode == 0o100644 || mode == 0o100755 || mode == 0o120000) {
-    return 'blob';
-  } else if (mode == 0o160000) {
-    return 'commit';
-  } else {
-    throw InternalError('Unexpected GitTree entry mode: ${mode.toRadixString(8)}');
+  switch (mode) {
+    case 0x4000: // 040000 in octal - tree (directory)
+      return 'tree';
+    case 0x81A4: // 100644 in octal - blob (regular file)
+    case 0x81ED: // 100755 in octal - blob (executable file)
+    case 0xA000: // 120000 in octal - blob (symbolic link)
+      return 'blob';
+    case 0xE000: // 160000 in octal - commit (gitlink/submodule)
+      return 'commit';
+    default:
+      throw InternalError(
+        'Unexpected GitTree entry mode: ${mode.toRadixString(8)}',
+      );
   }
-} 
+}

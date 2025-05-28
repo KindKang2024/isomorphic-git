@@ -1,16 +1,17 @@
 import 'dart:async';
 
+import 'package:isomorphic_git/src/models/file_system.dart';
+
 import '../errors/invalid_filepath_error.dart';
 import '../errors/not_found_error.dart';
 import '../errors/object_type_error.dart';
 import '../models/git_tree.dart';
-import '../storage/read_object.dart';
+import '../storage/read_object.dart' as read_object;
 import '../utils/resolve_tree.dart';
-import '../models/fs.dart';
 
 Future<String> resolveFilepath({
-  required FS fs,
-  required Map<String, dynamic> cache,
+  required FileSystem fs,
+  required dynamic cache,
   required String gitdir,
   required String oid,
   required String filepath,
@@ -21,79 +22,75 @@ Future<String> resolveFilepath({
     throw InvalidFilepathError('trailing-slash');
   }
 
-  final _oid = oid;
+  String currentOid = oid;
   final result = await resolveTree(
     fs: fs,
     cache: cache,
     gitdir: gitdir,
-    oid: oid,
+    oid: currentOid,
   );
-  var tree = result.tree;
-  var currentOid = result.oid; // oid of the current tree being processed
+  final tree = result.tree;
 
   if (filepath == '') {
-    return currentOid;
+    currentOid = result.oid;
   } else {
     final pathArray = filepath.split('/');
-    currentOid = await _resolveFilepathRecursive(
+    currentOid = await _resolveFilepath(
       fs: fs,
       cache: cache,
       gitdir: gitdir,
       tree: tree,
       pathArray: pathArray,
-      originalOid: _oid, // Pass the original OID for error reporting
-      originalFilepath:
-          filepath, // Pass the original filepath for error reporting
+      oid: oid, // Pass original oid for error reporting
+      filepath: filepath,
     );
   }
   return currentOid;
 }
 
-Future<String> _resolveFilepathRecursive({
-  required FS fs,
-  required Map<String, dynamic> cache,
+Future<String> _resolveFilepath({
+  required FileSystem fs,
+  required dynamic cache,
   required String gitdir,
   required GitTree tree,
   required List<String> pathArray,
-  required String
-  originalOid, // OID of the starting tree/commit for error context
-  required String originalFilepath, // Full filepath for error context
+  required String oid, // Original oid for error context
+  required String filepath,
 }) async {
   final name = pathArray.removeAt(0);
 
-  for (final entry in tree.entries) {
+  for (final entry in tree) {
     if (entry.path == name) {
       if (pathArray.isEmpty) {
         return entry.oid;
       } else {
-        final objectResult = await readObject(
+        final objResult = await read_object.readObject(
           fs: fs,
           cache: cache,
           gitdir: gitdir,
           oid: entry.oid,
         );
-        if (objectResult.type != 'tree') {
+
+        if (objResult.type != 'tree') {
           throw ObjectTypeError(
-            oid: entry.oid, // oid of the object that is not a tree
-            type: objectResult.type,
+            oid: oid,
+            actual: objResult.type,
             expected: 'tree',
-            filepath: originalFilepath,
+            filepath: filepath,
           );
         }
-        final nextTree = GitTree.from(objectResult.object);
-        return _resolveFilepathRecursive(
+        var newTree = GitTree.from(objResult.object);
+        return _resolveFilepath(
           fs: fs,
           cache: cache,
           gitdir: gitdir,
-          tree: nextTree,
+          tree: newTree,
           pathArray: pathArray,
-          originalOid: originalOid,
-          originalFilepath: originalFilepath,
+          oid: oid,
+          filepath: filepath,
         );
       }
     }
   }
-  throw NotFoundError(
-    'file or directory not found at "$originalOid:$originalFilepath"',
-  );
+  throw NotFoundError('file or directory found at "$oid:$filepath"');
 }

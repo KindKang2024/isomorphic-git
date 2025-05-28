@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:../models/git_annotated_tag.dart';
-import 'package:../storage/write_object.dart';
+import '../models/git_annotated_tag.dart';
+import '../storage/write_object.dart';
 
 // Assuming FileSystem and TagObject are defined elsewhere.
 // For now, using `dynamic` and `Map<String, dynamic>` as placeholders.

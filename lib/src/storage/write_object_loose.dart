@@ -1,6 +1,6 @@
 import 'dart:typed_data';
+import '../models/file_system.dart';
 
-import '../utils/fs.dart'; // Assuming FileSystem is defined here
 // Assuming InternalError is defined in a similar location or needs to be created.
 // import '../errors/internal_error.dart';
 

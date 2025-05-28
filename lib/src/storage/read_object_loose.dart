@@ -1,22 +1,8 @@
 import 'dart:typed_data'; // For Uint8List
-import 'dart:io'; // For File, FileSystemException
+import 'dart:io';
 
-// Placeholder for FileSystem class and its methods
-// This assumes 'fs.read()' returns Uint8List? (nullable)
-class FileSystem {
-  Future<Uint8List?> read(String path) async {
-    try {
-      final file = File(path);
-      if (await file.exists()) {
-        return await file.readAsBytes();
-      }
-    } on FileSystemException {
-      // Could log error or handle specific cases
-      return null;
-    }
-    return null;
-  }
-}
+import 'package:isomorphic_git/src/models/file_system.dart'; // For File, FileSystemException
+
 
 class ReadObjectLooseResult {
   final Uint8List object;

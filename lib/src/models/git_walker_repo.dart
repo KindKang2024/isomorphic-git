@@ -6,11 +6,11 @@ import '../errors/object_type_error.dart'; // Placeholder
 import '../managers/git_ref_manager.dart'; // Placeholder
 import './git_tree.dart'; // Assumes GitTree and TreeEntry are defined
 import '../storage/read_object.dart'; // Placeholder for _readObject
-import '../utils/path_utils.dart'; // For join, Placeholder
 import '../utils/normalize_mode.dart'; // Placeholder
 import '../utils/resolve_tree.dart'; // Placeholder
-import '../utils/file_system.dart'; // Assuming an abstract FileSystem interface
+import '../models/file_system.dart'; // Assuming an abstract FileSystem interface
 import './git_walker_fs.dart'; // For WalkerEntry
+import '../utils/join.dart'; // For join function
 
 // Define ReadObjectResult if not already present
 // class ReadObjectResult {
@@ -39,7 +39,11 @@ class GitWalkerRepo {
   }
 
   static Future<Map<String, TreeEntry>> _initializeMap(
-      FileSystem fs, String gitdir, String ref, Map<String, dynamic> cache) async {
+    FileSystem fs,
+    String gitdir,
+    String ref,
+    Map<String, dynamic> cache,
+  ) async {
     final map = <String, TreeEntry>{};
     String oid;
     try {
@@ -51,16 +55,25 @@ class GitWalkerRepo {
     // resolveTree should return a structure that can be converted to TreeEntry
     // Or it returns a root TreeEntry itself.
     // The JS version sets tree.type and tree.mode on the resolved tree object.
-    final resolvedTree = await resolveTree(fs: fs, cache: cache, gitdir: gitdir, oid: oid);
-    
+    final resolvedTree = await resolveTree(
+      fs: fs,
+      cache: cache,
+      gitdir: gitdir,
+      oid: oid,
+    );
+
     // Assuming resolvedTree is a TreeEntry or can be made into one
     // For simplicity, let's assume resolveTree gives us the root TreeEntry's properties
     // and we manually create the root entry for the map.
     map['.'] = TreeEntry(
-        mode: resolvedTree.mode ?? '040000', // Default to tree mode
-        path: '.', 
-        oid: resolvedTree.oid ?? oid, // Use resolved OID or original if tree was empty
-        type: GitObjectType.values.firstWhere((e) => e.name == (resolvedTree.type ?? 'tree'))
+      mode: resolvedTree.mode ?? '040000', // Default to tree mode
+      path: '.',
+      oid:
+          resolvedTree.oid ??
+          oid, // Use resolved OID or original if tree was empty
+      type: GitObjectType.values.firstWhere(
+        (e) => e.name == (resolvedTree.type ?? 'tree'),
+      ),
     );
     return map;
   }
@@ -77,7 +90,12 @@ class GitWalkerRepo {
       return null;
     }
 
-    final readResult = await readObject(fs: fs, cache: cache, gitdir: gitdir, oid: oid);
+    final readResult = await readObject(
+      fs: fs,
+      cache: cache,
+      gitdir: gitdir,
+      oid: oid,
+    );
     if (readResult.type != 'tree') {
       throw ObjectTypeError(oid, readResult.type, 'tree');
     }
@@ -105,7 +123,9 @@ class GitWalkerRepo {
       final map = await mapPromise;
       final obj = map[e.fullpath];
       if (obj != null) {
-         e._mode = normalizeMode(int.parse(obj.mode, radix: 16)); // normalizeMode needs implementation
+        e._mode = normalizeMode(
+          int.parse(obj.mode, radix: 16),
+        ); // normalizeMode needs implementation
       }
     }
     return e._mode;
@@ -124,11 +144,16 @@ class GitWalkerRepo {
       if (obj == null || obj.type != GitObjectType.blob) {
         e._content = null; // Explicitly null for Uint8List?
       } else {
-        final readResult = await readObject(fs: fs, cache: cache, gitdir: gitdir, oid: obj.oid);
+        final readResult = await readObject(
+          fs: fs,
+          cache: cache,
+          gitdir: gitdir,
+          oid: obj.oid,
+        );
         if (readResult.type != 'blob') {
-             e._content = null; // Or throw error
+          e._content = null; // Or throw error
         } else {
-            e._content = readResult.object;
+          e._content = readResult.object;
         }
       }
     }

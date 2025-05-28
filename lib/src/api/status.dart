@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import '../commands/read_tree.dart' as read_tree;
 import '../errors/not_found_error.dart';
 import '../errors/object_type_error.dart';
 import '../managers/git_ignore_manager.dart';

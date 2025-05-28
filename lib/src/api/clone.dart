@@ -1,6 +1,5 @@
-import 'package:isomorphic_git/isomorphic_git.dart';
 import '../commands/clone.dart' as _clone;
-import 'package:./models/file_system.dart';
+import '../models/file_system.dart';
 import '../utils/assert_parameter.dart';
 import '../utils/join.dart';
 
@@ -48,7 +47,7 @@ import '../utils/join.dart';
 /// print('done');
 /// ```
 Future<void> clone({
-  required FsClient fs,
+  required FileSystem fs,
   required HttpClient http,
   ProgressCallback? onProgress,
   MessageCallback? onMessage,
@@ -83,7 +82,7 @@ Future<void> clone({
     assertParameter('url', url);
 
     return await _clone.clone(
-      fs: FileSystem(fs),
+      fs: fs,
       cache: cache,
       http: http,
       onProgress: onProgress,

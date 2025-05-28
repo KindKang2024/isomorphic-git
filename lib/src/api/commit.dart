@@ -1,4 +1,3 @@
-import 'package:isomorphic_git/isomorphic_git.dart';
 import '../commands/commit.dart' as _commit;
 import '../models/file_system.dart';
 import '../utils/assert_parameter.dart';

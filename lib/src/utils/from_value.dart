@@ -2,7 +2,7 @@ import 'dart:async';
 
 /// Converts a value to an async iterator-like interface.
 class FromValue<T> {
-  List<T> _queue;
+  final List<T> _queue;
 
   FromValue(T value) : _queue = [value];
 

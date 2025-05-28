@@ -16,12 +16,6 @@ Directory: (root directory)
 Directory: errors
   - index.js
 
-Directory: http/node
-  - index.js
-
-Directory: http/web
-  - index.js
-
 Directory: managers
   - README.md
 

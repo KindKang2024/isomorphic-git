@@ -1,14 +1,16 @@
 import 'dart:async';
 import 'dart:typed_data';
+import 'dart:io'; // Added for FileSystemEntityType, Directory, FileStat
 
 import '../managers/git_config_manager.dart'; // Placeholder
 import '../managers/git_index_manager.dart'; // Placeholder
 import '../utils/compare_stats.dart'; // Placeholder
-import '../utils/path_utils.dart'; // For join, Placeholder
 import '../utils/normalize_stats.dart'; // Placeholder
 import '../utils/shasum.dart'; // Placeholder
+import '../utils/join.dart'; // Added for join utility
 import './git_object.dart';
-import '../utils/file_system.dart'; // Assuming an abstract FileSystem interface
+import '../models/file_system.dart'; // Assuming an abstract FileSystem interface
+import '../models/git_config.dart'; // Added for GitConfig type
 
 // Define an abstract FileSystem interface if not already present
 // abstract class FileSystem {
@@ -82,22 +84,47 @@ class GitWalkerFs {
   Future<dynamic> statImpl(WalkerEntry entry) async {
     final e = entry as _WorkdirEntry;
     if (e._stat == null) {
-      var statObj = await fs.lstat(join(dir, e.fullpath));
-      if (statObj == null) {
+      // Assume fs.lstat returns a dart:io.FileStat or a compatible object.
+      // If fs.lstat() is defined to return `dynamic`, an explicit cast might be needed
+      // if the analyzer can't infer FileStat.
+      final statFs = await fs.lstat(join(dir, e.fullpath));
+
+      // Ensure statFs is not null before proceeding
+      if (statFs == null) {
         throw Exception(
-            'ENOENT: no such file or directory, lstat \'${e.fullpath}\'');
+          'ENOENT: no such file or directory, lstat '${e.fullpath}'',
+        );
       }
-      String type = statObj.isDirectory() ? 'tree' : 'blob';
-      if (type == 'blob' && !statObj.isFile() && !statObj.isSymbolicLink()) {
-        type = 'special';
+      
+      // Ensure statFs is a FileStat object before accessing .type
+      // This check is important if fs.lstat can return other types or if it's dynamic.
+      if (statFs is! FileStat) {
+        throw Exception('Invalid stat object received from fs.lstat for ${e.fullpath}. Expected FileStat, got ${statFs.runtimeType}');
+      }
+      final statData = statFs as FileStat;
+
+
+      String type;
+      if (statData.type == FileSystemEntityType.directory) {
+        type = 'tree';
+      } else if (statData.type == FileSystemEntityType.file) {
+        type = 'blob';
+      } else if (statData.type == FileSystemEntityType.link) {
+        type = 'blob'; // Symbolic links are treated as 'blob' type in JS example
+      } else {
+        type = 'special'; // Other types (fifo, socket, etc.)
       }
       e._type = type;
-      statObj = normalizeStats(statObj); // normalizeStats needs to be implemented
-      e._mode = statObj.mode;
-      if (statObj.size == -1 && e._actualSize != null) {
-        statObj.size = e._actualSize; // BrowserFS workaround
+
+      // normalizeStats is expected to return Map<String, dynamic>
+      // It takes the original FileStat object as input.
+      final normalizedStatMap = normalizeStats(statData);
+
+      e._mode = normalizedStatMap['mode'] as int?;
+      if ((normalizedStatMap['size'] as int?) == -1 && e._actualSize != null) {
+        normalizedStatMap['size'] = e._actualSize; // Modifying the map
       }
-      e._stat = statObj;
+      e._stat = normalizedStatMap; // _stat is dynamic, so Map is fine
     }
     return e._stat;
   }
@@ -109,11 +136,17 @@ class GitWalkerFs {
         e._content = null; // Explicitly null for Uint8List?
       } else {
         final config = await _getGitConfig();
-        final autocrlf = await config.get('core.autocrlf') as bool? ?? false; // Default to false
-        final fileContent = await fs.read(join(dir, e.fullpath), autocrlf: autocrlf);
-        e._actualSize = fileContent.lengthInBytes;
-        if (e._stat != null && e._stat.size == -1) {
+        final autocrlf =
+            await config.get('core.autocrlf') as bool? ?? false;
+        final fileContent = await fs.read(
+          join(dir, e.fullpath),
+          autocrlf: autocrlf,
+        );
+        e._actualSize = fileContent?.lengthInBytes; // Null-safe access
+        if (e._stat != null && (e._stat['size'] as int?) == -1 && e._actualSize != null) { // Access size from map
           // e._stat.size = e._actualSize; // This would modify the stat object, ensure it's mutable or handle differently
+          // If _stat is a map, modify it:
+           e._stat['size'] = e._actualSize;
         }
         e._content = fileContent;
       }
@@ -125,40 +158,52 @@ class GitWalkerFs {
     final e = entry as _WorkdirEntry;
     if (e._oid == null) {
       String? calculatedOid;
-      await GitIndexManager.acquire(fs: fs, gitdir: gitdir, cache: cache, callback: (index) async {
-        final stageEntry = index.entriesMap[e.fullpath];
-        final stats = await statImpl(e);
-        final config = await _getGitConfig();
-        final filemode = await config.get('core.filemode') as bool? ?? true; // Default to true (Unix-like)
-        // 'trustino' logic from JS:
-        // typeof process !== 'undefined' ? !(process.platform === 'win32') : true
-        // Dart equivalent might depend on dart:io Platform.isWindows, or be configurable
-        final trustino = true; // Simplified for now
+      await GitIndexManager.acquire(
+        fs: Directory(gitdir), // Changed to Directory(gitdir)
+        gitdir: gitdir,        // Pass gitdir explicitly
+        closure: (index) async { // Changed callback to closure
+          final stageEntry = index.entriesMap[e.fullpath];
+          final stats = await statImpl(e); // This is now a Map
+          final config = await _getGitConfig();
+          final filemode =
+              await config.get('core.filemode') as bool? ?? true;
+          final trustino = true; // Simplified for now
 
-        if (stageEntry == null || compareStats(stats, stageEntry, filemode, trustino)) { // compareStats needs implementation
-          final fileContent = await contentImpl(e);
-          if (fileContent == null) {
-            calculatedOid = null;
-          } else {
-            calculatedOid = await shasum(GitObject.wrap(type: 'blob', object: fileContent));
-            if (stageEntry != null &&
-                calculatedOid == stageEntry.oid &&
-                (!filemode || stats.mode == stageEntry.mode) &&
-                compareStats(stats, stageEntry, filemode, trustino)) {
-              index.insert(filepath: e.fullpath, stats: stats, oid: calculatedOid!);
+          // compareStats now takes 2 arguments in Dart (assumed)
+          if (stageEntry == null ||
+              compareStats(stats, stageEntry)) { 
+            final fileContent = await contentImpl(e);
+            if (fileContent == null) {
+              calculatedOid = null;
+            } else {
+              calculatedOid = await shasum(
+                GitObject.wrap(type: 'blob', object: fileContent),
+              );
+              // stats is a Map, stageEntry.mode and stageEntry.oid are compared
+              // Ensure stats from statImpl() (which is a Map) has 'mode'
+              if (stageEntry != null &&
+                  calculatedOid == stageEntry.oid &&
+                  (!filemode || (stats['mode'] as int?) == stageEntry.mode) &&
+                  compareStats(stats, stageEntry)) { // compareStats takes 2 args
+                index.insert(
+                  filepath: e.fullpath,
+                  stats: stats, // Pass the map
+                  oid: calculatedOid!,
+                );
+              }
             }
+          } else {
+            calculatedOid = stageEntry.oid;
           }
-        } else {
-          calculatedOid = stageEntry.oid;
-        }
-      });
+        },
+      );
       e._oid = calculatedOid;
     }
     return e._oid;
   }
 
   Future<GitConfig> _getGitConfig() async {
-    _config ??= await GitConfigManager.get(fs: fs, gitdir: gitdir);
+    _config ??= await GitConfigManager.get(fs: Directory(gitdir), gitdir: gitdir); // Changed fs to Directory(gitdir)
     return _config!;
   }
 }

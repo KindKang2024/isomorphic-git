@@ -2,22 +2,19 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:isomorphic_git/isomorphic_git.dart';
 import '../commands/tree.dart';
 import '../commands/walk.dart';
 import '../errors/merge_conflict_error.dart';
 import '../errors/merge_not_supported_error.dart';
 import '../models/git_tree.dart';
-import '../storage/object_storage.dart';
 import '../utils/basename.dart';
 import '../utils/join.dart';
 import '../utils/merge_file.dart';
 import '../utils/modified.dart';
-import '../models/fs.dart';
-import '../models/index_manager.dart';
+import '../models/file_system.dart';
 
 Future<String> mergeTree({
-  required FS fs,
+  required FileSystem fs,
   required Map<String, dynamic> cache,
   String? dir,
   required String gitdir,
@@ -273,7 +270,7 @@ class _MergeBlobsResult {
 }
 
 Future<_MergeBlobsResult> _mergeBlobs({
-  required FS fs,
+  required FileSystem fs,
   required String gitdir,
   required String path,
   required WalkerEntry ours,
